@@ -9,27 +9,27 @@ const app = express();
 // Middleware
 app.use(express.json());
 
-// MongoDB Connection
-mongoose.connect('mongodb://127.0.0.1:27017/myapi')
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.log(err));
+// MongoDB connection
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("MongoDB connected"))
+  .catch(err => console.log("MongoDB error:", err));
 
 // Routes
 app.use('/users', userRoutes);
 
-// Root endpoint
+// Root route
 app.get('/', (req, res) => {
   res.json({
     message: "My First API 🚀",
     endpoints: {
-      login: "/users/login",
       register: "/users/register",
+      login: "/users/login",
       users: "/users (protected)"
     }
   });
 });
 
-// Port (important for Render)
+// Port
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
