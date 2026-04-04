@@ -1,35 +1,36 @@
-require('dotenv').config();
+require("dotenv").config();
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
 
-const express = require('express');
-const mongoose = require('mongoose');
-const userRoutes = require('./routes/userRoutes');
+const userRoutes = require("./routes/userRoutes");
 
 const app = express();
 
+app.use(cors());
 app.use(express.json());
 
-// MongoDB connection
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
-.then(() => console.log("MongoDB connected"))
-.catch(err => console.error("MongoDB connection error:", err));
-
-// routes
-app.use('/users', userRoutes);
-
-app.get('/', (req, res) => {
+/* ROUTES */
+app.get("/", (req, res) => {
   res.json({
     message: "My First API 🚀",
     endpoints: {
-      register: "/users/register",
       login: "/users/login",
-      users: "/users (protected)"
-    }
+      register: "/users/register",
+      users: "/users (protected)",
+    },
   });
 });
 
+app.use("/users", userRoutes);
+
+/* MONGODB CONNECTION */
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("MongoDB connected ✅"))
+  .catch((err) => console.log("MongoDB error ❌", err));
+
+/* PORT */
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
