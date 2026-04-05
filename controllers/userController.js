@@ -2,10 +2,11 @@ const User = require("../models/User");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
-/* =========================
+
+/* ===============================
    REGISTER USER
-========================= */
-exports.registerUser = async (req, res) => {
+================================ */
+const registerUser = async (req, res) => {
   try {
     const { id, name, email, password } = req.body;
 
@@ -20,33 +21,36 @@ exports.registerUser = async (req, res) => {
       id,
       name,
       email,
-      password: hashedPassword,
+      password: hashedPassword
     });
 
     await user.save();
 
-    res.status(201).json({ message: "User registered successfully" });
+    res.status(201).json({
+      message: "User registered successfully"
+    });
 
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-/* =========================
+
+/* ===============================
    LOGIN USER
-========================= */
-exports.loginUser = async (req, res) => {
+================================ */
+const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ message: "Invalid credentials" });
+      return res.status(400).json({ message: "Invalid email" });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ message: "Invalid credentials" });
+      return res.status(400).json({ message: "Invalid password" });
     }
 
     const token = jwt.sign(
@@ -55,55 +59,9 @@ exports.loginUser = async (req, res) => {
       { expiresIn: "1d" }
     );
 
-    res.json({ token });
-
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-/* =========================
-   GET USERS
-   SEARCH + PAGINATION + SORT + FILTER
-========================= */
-exports.getUsers = async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 5;
-    const search = req.query.search || "";
-    const sort = req.query.sort || "createdAt";
-
-    const { name, email } = req.query;
-
-    const skip = (page - 1) * limit;
-
-    const query = {
-      $and: [
-        {
-          $or: [
-            { name: { $regex: search, $options: "i" } },
-            { email: { $regex: search, $options: "i" } }
-          ]
-        },
-        name ? { name } : {},
-        email ? { email } : {}
-      ]
-    };
-
-    const users = await User.find(query)
-      .select("-password")
-      .sort(sort)
-      .skip(skip)
-      .limit(limit);
-
-    const total = await User.countDocuments(query);
-
     res.json({
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-      data: users,
+      message: "Login successful",
+      token
     });
 
   } catch (error) {
@@ -111,28 +69,58 @@ exports.getUsers = async (req, res) => {
   }
 };
 
-/* =========================
-   GET SINGLE USER
-========================= */
-exports.getUserById = async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id).select("-password");
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+/* ===============================
+   GET USERS (Pagination + Filter + Sort)
+================================ */
+const getUsers = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 5;
+    const skip = (page - 1) * limit;
+
+    const searchQuery = {};
+
+    // filtering by name
+    if (req.query.name) {
+      searchQuery.name = { $regex: req.query.name, $options: "i" };
     }
 
-    res.json(user);
+    // filtering by email
+    if (req.query.email) {
+      searchQuery.email = { $regex: req.query.email, $options: "i" };
+    }
+
+    // sorting
+    let sortBy = {};
+    if (req.query.sort) {
+      const field = req.query.sort;
+
+      if (field.startsWith("-")) {
+        sortBy[field.substring(1)] = -1;
+      } else {
+        sortBy[field] = 1;
+      }
+    }
+
+    const users = await User.find(searchQuery)
+      .select("-password")
+      .sort(sortBy)
+      .skip(skip)
+      .limit(limit);
+
+    res.json(users);
 
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-/* =========================
+
+/* ===============================
    UPDATE USER
-========================= */
-exports.updateUser = async (req, res) => {
+================================ */
+const updateUser = async (req, res) => {
   try {
     const { name, email } = req.body;
 
@@ -142,20 +130,18 @@ exports.updateUser = async (req, res) => {
       { new: true }
     ).select("-password");
 
-    res.json({
-      message: "User updated successfully",
-      user,
-    });
+    res.json(user);
 
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-/* =========================
+
+/* ===============================
    DELETE USER
-========================= */
-exports.deleteUser = async (req, res) => {
+================================ */
+const deleteUser = async (req, res) => {
   try {
     await User.findByIdAndDelete(req.params.id);
 
@@ -164,4 +150,13 @@ exports.deleteUser = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
+};
+
+
+module.exports = {
+  registerUser,
+  loginUser,
+  getUsers,
+  updateUser,
+  deleteUser
 };
