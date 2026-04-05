@@ -3,31 +3,27 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
 
-/* ===============================
-   REGISTER USER
-================================ */
+// REGISTER USER
 const registerUser = async (req, res) => {
   try {
-    const { id, name, email, password } = req.body;
+    const { name, email, password } = req.body;
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
+    const userExists = await User.findOne({ email });
+    if (userExists) {
       return res.status(400).json({ message: "User already exists" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = new User({
-      id,
+    const user = await User.create({
       name,
       email,
       password: hashedPassword
     });
 
-    await user.save();
-
     res.status(201).json({
-      message: "User registered successfully"
+      message: "User registered successfully",
+      user
     });
 
   } catch (error) {
@@ -36,26 +32,24 @@ const registerUser = async (req, res) => {
 };
 
 
-/* ===============================
-   LOGIN USER
-================================ */
+// LOGIN USER
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ message: "Invalid email" });
+      return res.status(400).json({ message: "Invalid credentials" });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ message: "Invalid password" });
+      return res.status(400).json({ message: "Invalid credentials" });
     }
 
     const token = jwt.sign(
       { id: user._id },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET || "secret",
       { expiresIn: "1d" }
     );
 
@@ -70,16 +64,14 @@ const loginUser = async (req, res) => {
 };
 
 
-/* ===============================
-   GET USERS (Pagination + Filter + Sort)
-================================ */
+// GET USERS (Pagination + Filtering + Sorting + Metadata)
 const getUsers = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 5;
     const skip = (page - 1) * limit;
 
-    // filtering
+    // FILTER
     const filter = {};
 
     if (req.query.name) {
@@ -96,7 +88,7 @@ const getUsers = async (req, res) => {
       };
     }
 
-    // sorting
+    // SORT
     let sort = {};
     if (req.query.sort) {
       const field = req.query.sort;
@@ -108,49 +100,22 @@ const getUsers = async (req, res) => {
       }
     }
 
+    const totalUsers = await User.countDocuments(filter);
+
     const users = await User.find(filter)
       .select("-password")
       .sort(sort)
       .skip(skip)
       .limit(limit);
 
-    res.json(users);
+    const totalPages = Math.ceil(totalUsers / limit);
 
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-
-/* ===============================
-   UPDATE USER
-================================ */
-const updateUser = async (req, res) => {
-  try {
-    const { name, email } = req.body;
-
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { name, email },
-      { new: true }
-    ).select("-password");
-
-    res.json(user);
-
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-
-/* ===============================
-   DELETE USER
-================================ */
-const deleteUser = async (req, res) => {
-  try {
-    await User.findByIdAndDelete(req.params.id);
-
-    res.json({ message: "User deleted successfully" });
+    res.json({
+      totalUsers,
+      totalPages,
+      currentPage: page,
+      users
+    });
 
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -161,7 +126,5 @@ const deleteUser = async (req, res) => {
 module.exports = {
   registerUser,
   loginUser,
-  getUsers,
-  updateUser,
-  deleteUser
+  getUsers
 };
