@@ -63,13 +63,14 @@ exports.loginUser = async (req, res) => {
 };
 
 /* =========================
-   GET USERS (SEARCH + PAGINATION)
+   GET USERS (SEARCH + PAGINATION + SORT)
 ========================= */
 exports.getUsers = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 5;
     const search = req.query.search || "";
+    const sort = req.query.sort || "createdAt";
 
     const skip = (page - 1) * limit;
 
@@ -82,6 +83,7 @@ exports.getUsers = async (req, res) => {
 
     const users = await User.find(query)
       .select("-password")
+      .sort(sort)
       .skip(skip)
       .limit(limit);
 
