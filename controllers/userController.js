@@ -63,7 +63,8 @@ exports.loginUser = async (req, res) => {
 };
 
 /* =========================
-   GET USERS (SEARCH + PAGINATION + SORT)
+   GET USERS
+   SEARCH + PAGINATION + SORT + FILTER
 ========================= */
 exports.getUsers = async (req, res) => {
   try {
@@ -72,12 +73,20 @@ exports.getUsers = async (req, res) => {
     const search = req.query.search || "";
     const sort = req.query.sort || "createdAt";
 
+    const { name, email } = req.query;
+
     const skip = (page - 1) * limit;
 
     const query = {
-      $or: [
-        { name: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } }
+      $and: [
+        {
+          $or: [
+            { name: { $regex: search, $options: "i" } },
+            { email: { $regex: search, $options: "i" } }
+          ]
+        },
+        name ? { name } : {},
+        email ? { email } : {}
       ]
     };
 
