@@ -79,33 +79,38 @@ const getUsers = async (req, res) => {
     const limit = parseInt(req.query.limit) || 5;
     const skip = (page - 1) * limit;
 
-    const searchQuery = {};
+    // filtering
+    const filter = {};
 
-    // filtering by name
     if (req.query.name) {
-      searchQuery.name = { $regex: req.query.name, $options: "i" };
+      filter.name = {
+        $regex: req.query.name,
+        $options: "i"
+      };
     }
 
-    // filtering by email
     if (req.query.email) {
-      searchQuery.email = { $regex: req.query.email, $options: "i" };
+      filter.email = {
+        $regex: req.query.email,
+        $options: "i"
+      };
     }
 
     // sorting
-    let sortBy = {};
+    let sort = {};
     if (req.query.sort) {
       const field = req.query.sort;
 
       if (field.startsWith("-")) {
-        sortBy[field.substring(1)] = -1;
+        sort[field.substring(1)] = -1;
       } else {
-        sortBy[field] = 1;
+        sort[field] = 1;
       }
     }
 
-    const users = await User.find(searchQuery)
+    const users = await User.find(filter)
       .select("-password")
-      .sort(sortBy)
+      .sort(sort)
       .skip(skip)
       .limit(limit);
 
