@@ -26,6 +26,7 @@ exports.registerUser = async (req, res) => {
     await user.save();
 
     res.status(201).json({ message: "User registered successfully" });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -55,27 +56,36 @@ exports.loginUser = async (req, res) => {
     );
 
     res.json({ token });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
 /* =========================
-   GET USERS (PAGINATION)
+   GET USERS (SEARCH + PAGINATION)
 ========================= */
 exports.getUsers = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 5;
+    const search = req.query.search || "";
 
     const skip = (page - 1) * limit;
 
-    const users = await User.find()
+    const query = {
+      $or: [
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } }
+      ]
+    };
+
+    const users = await User.find(query)
       .select("-password")
       .skip(skip)
       .limit(limit);
 
-    const total = await User.countDocuments();
+    const total = await User.countDocuments(query);
 
     res.json({
       page,
@@ -84,6 +94,7 @@ exports.getUsers = async (req, res) => {
       totalPages: Math.ceil(total / limit),
       data: users,
     });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -101,6 +112,7 @@ exports.getUserById = async (req, res) => {
     }
 
     res.json(user);
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -119,14 +131,11 @@ exports.updateUser = async (req, res) => {
       { new: true }
     ).select("-password");
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
     res.json({
       message: "User updated successfully",
       user,
     });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -137,13 +146,10 @@ exports.updateUser = async (req, res) => {
 ========================= */
 exports.deleteUser = async (req, res) => {
   try {
-    const user = await User.findByIdAndDelete(req.params.id);
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    await User.findByIdAndDelete(req.params.id);
 
     res.json({ message: "User deleted successfully" });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
